@@ -103,6 +103,26 @@ class Json
 						->where_in('t.entry_id', $this->entries_entry_ids)
 						->get()
 						->result_array();
+						
+	    /*hack fix */
+      $this->entries = $this->EE->db->select(implode(', ', $select), FALSE)
+           ->from('channel_titles t')
+           ->join('channel_data d', 't.entry_id = d.entry_id')
+           ->where_in('t.entry_id', $this->entries_entry_ids)
+           ->get()
+           ->result_array();
+
+      $last_query = $this->EE->db->last_query();
+
+      if (preg_match('/ORDER BY/', $this->channel_sql(), $match)){
+         $order_by_vars = explode("ORDER BY", $this->channel_sql());
+         $order_by = 'ORDER BY' . $order_by_vars[1];
+       }
+
+      $entries_sql = $last_query . $order_by;
+
+      $this->entries = $this->EE->db->query($entries_sql)->result_array();
+      /* /hack fix */
 			
 			foreach ($this->entries as &$entry)
 			{
