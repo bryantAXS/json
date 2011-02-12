@@ -97,31 +97,26 @@ class Json
 				}
 			}
 			
-			$this->entries = $this->EE->db->select(implode(', ', $select), FALSE)
-						->from('channel_titles t')
-						->join('channel_data d', 't.entry_id = d.entry_id')
-						->where_in('t.entry_id', $this->entries_entry_ids)
-						->get()
-						->result_array();
-						
-	    /*hack fix */
+      /*hack fix */
       $this->entries = $this->EE->db->select(implode(', ', $select), FALSE)
            ->from('channel_titles t')
            ->join('channel_data d', 't.entry_id = d.entry_id')
            ->where_in('t.entry_id', $this->entries_entry_ids)
            ->get()
            ->result_array();
-
-      $last_query = $this->EE->db->last_query();
-
-      if (preg_match('/ORDER BY/', $this->channel_sql(), $match)){
-         $order_by_vars = explode("ORDER BY", $this->channel_sql());
-         $order_by = 'ORDER BY' . $order_by_vars[1];
-       }
-
-      $entries_sql = $last_query . $order_by;
-
-      $this->entries = $this->EE->db->query($entries_sql)->result_array();
+           
+      $this->entries = $this->_sort_entries();
+      
+      // $last_query = $this->EE->db->last_query();
+      //      
+      //       if (preg_match('/ORDER BY/', $this->channel_sql(), $match)){
+      //          $order_by_vars = explode("ORDER BY", $this->channel_sql());
+      //          $order_by = 'ORDER BY' . $order_by_vars[1];
+      //        }
+      //        
+      //       $entries_sql = $last_query ." " . $order_by;
+      
+      //$this->entries = $this->EE->db->query($entries_sql)->result_array();
       /* /hack fix */
 			
 			foreach ($this->entries as &$entry)
@@ -174,6 +169,33 @@ class Json
 		}
 		
 		return $data;
+	}
+	
+	/*
+	* this function is the master function which handles sorting $this->entries and $this->channel_sql() results.
+	*/
+	private function _sort_entries(){
+	  	  
+	  $order = $this->_get_sort_order();
+	  $sort_obj = new sort_order();
+	  $sort_obj->order = $order;
+	  
+	  usort($this->entries, array($sort_obj, 'do_sort'));
+	  
+	  return $this->entries;
+	}
+	
+	/*
+	* this function gets the order the entires are returned in from $this->channel_sql and returns them in an array
+	*/
+	private function _get_sort_order(){
+	  
+	  $channel_results = $this->EE->db->query($this->channel_sql())->result_array();
+	  $order = array();
+	  foreach($channel_results as $entry){
+	    $order[] = $entry['entry_id'];
+	  }
+	  return $order;
 	}
 	
 	private function channel_sql()
@@ -421,5 +443,27 @@ class Json
 		return $buffer;
 	}
 }
+
+/*
+* this class is only used to sort $this->entries and the sort order determined from $this->channel_sql() results...
+* it needed to be put into a class so that the usort callback function had access to a class property as you 
+* can't pass any "third party" variables to the sorting callback function
+*/
+class sort_order{
+  
+  var $order = array();
+  
+  public function do_sort($a, $b){
+    if(array_search($a['entry_id'], $this->order) == array_search($b['entry_id'], $this->order)){
+      return 0;
+    }else if(array_search($a['entry_id'], $this->order) < array_search($b['entry_id'], $this->order)){
+      return -1;
+    }else{
+      return 1;
+    }
+  }
+  
+}
+
 /* End of file pi.json.php */ 
-/* Location: ./system/expressionengine/third_party/json/pi.json.php */ 
+/* Location: ./system/expressionengine/third_party/json/pi.json.php */
